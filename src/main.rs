@@ -1,6 +1,10 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::{env, path::Path, process::exit};
+use std::{
+    env,
+    path::Path,
+    process::{exit, Command},
+};
 
 const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "echo", "type"];
 
@@ -23,30 +27,46 @@ fn main() {
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
-
         io::stdin().read_line(&mut input).unwrap();
         let input_command = input.trim();
-        let mut input_command_name = "";
-        let mut input_command_args = "";
 
-        if input_command.split_once(" ").is_some() {
-            (input_command_name, input_command_args) = input_command.split_once(" ").unwrap();
+        if input_command.is_empty() {
+            continue;
         }
 
-        if input_command_name == "exit" {
+        let (command_name, args) = match input_command.split_once(" ") {
+            Some((cmd, args)) => (cmd, args),
+            None => (input_command, ""),
+        };
+
+        if command_name == "exit" {
             exit(0);
-        } else if input_command_name == "echo" {
-            println!("{}", input_command_args);
-        } else if input_command_name == "type" {
-            if BUILT_IN_COMMANDS.contains(&input_command_args) {
-                println!("{} is a shell builtin", input_command_args);
-            } else if let Some(full_path) = check_path(input_command_args) {
-                println!("{} is {}", input_command_args, full_path);
+        } else if command_name == "echo" {
+            println!("{}", args);
+        } else if command_name == "type" {
+            if BUILT_IN_COMMANDS.contains(&args) {
+                println!("{} is a shell builtin", args);
+            } else if let Some(full_path) = check_path(args) {
+                println!("{} is {}", args, full_path);
             } else {
-                println!("{}: not found", input_command_args);
+                println!("{}: not found", args);
             }
         } else {
-            println!("{}: command not found", input_command);
+            match check_path(command_name) {
+                Some(_) => {
+                    let output = Command::new(command_name)
+                        .args(args.split_whitespace())
+                        .output()
+                        .expect("Failed to execute command");
+
+                    if !output.stdout.is_empty() {
+                        print!("{}", String::from_utf8_lossy(&output.stdout));
+                    }
+                }
+                None => {
+                    println!("{}: command not found", command_name);
+                }
+            }
         }
     }
 }
