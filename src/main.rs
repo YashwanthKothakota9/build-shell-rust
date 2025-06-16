@@ -2,12 +2,13 @@
 use std::io::{self, Write};
 use std::process::exit;
 
+const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "echo", "type"];
+
 fn main() {
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
 
-        // Wait for user input
         let mut input = String::new();
 
         io::stdin().read_line(&mut input).unwrap();
@@ -23,6 +24,12 @@ fn main() {
             exit(0);
         } else if input_command_name == "echo" {
             println!("{}", input_command_args);
+        } else if input_command_name == "type" {
+            if BUILT_IN_COMMANDS.contains(&input_command_args) {
+                println!("{} is a shell builtin", input_command_args);
+            } else {
+                println!("{}: not found", input_command_args);
+            }
         } else {
             println!("{}: command not found", input_command);
         }
