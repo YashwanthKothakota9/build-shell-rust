@@ -27,9 +27,28 @@ fn parse_input(input: &str) -> Vec<String> {
     let mut current_arg = String::new();
     let mut in_single_quotes = false;
     let mut in_double_quotes = false;
-    let chars = input.chars().peekable();
-    for ch in chars {
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
         match ch {
+            '\\' if !in_single_quotes => {
+                if let Some(&next_ch) = chars.peek() {
+                    if in_double_quotes {
+                        match next_ch {
+                            '"' | '$' | '`' | '\\' | '\n' => {
+                                chars.next();
+                                current_arg.push(next_ch);
+                            }
+                            _ => current_arg.push('\\'),
+                        }
+                    } else {
+                        chars.next();
+                        current_arg.push(next_ch);
+                    }
+                } else {
+                    current_arg.push('\\');
+                }
+            }
             '\'' if !in_double_quotes => in_single_quotes = !in_single_quotes,
             '"' if !in_single_quotes => in_double_quotes = !in_double_quotes,
             ch if ch.is_whitespace() && !in_single_quotes && !in_double_quotes => {
@@ -41,6 +60,7 @@ fn parse_input(input: &str) -> Vec<String> {
             _ => current_arg.push(ch),
         }
     }
+
     if !current_arg.is_empty() {
         args.push(current_arg);
     }
