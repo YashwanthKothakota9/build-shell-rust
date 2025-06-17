@@ -53,6 +53,13 @@ fn main() {
             }
         } else if command_name == "pwd" {
             println!("{}", env::current_dir().unwrap().display())
+        } else if command_name == "cd" && !args.is_empty() {
+            let path = Path::new(args);
+            if path.exists() {
+                env::set_current_dir(path).unwrap();
+            } else {
+                println!("cd: {}: No such file or directory", args);
+            }
         } else {
             match check_path(command_name) {
                 Some(_) => {
