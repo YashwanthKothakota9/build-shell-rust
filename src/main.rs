@@ -2,7 +2,7 @@
 use std::io::{self, Write};
 use std::{
     env,
-    path::Path,
+    path::{Path, PathBuf},
     process::{exit, Command},
 };
 
@@ -54,7 +54,12 @@ fn main() {
         } else if command_name == "pwd" {
             println!("{}", env::current_dir().unwrap().display())
         } else if command_name == "cd" && !args.is_empty() {
-            let path = Path::new(args);
+            let path = if args == "~" {
+                let home_path = env::var("HOME").unwrap();
+                PathBuf::from(home_path)
+            } else {
+                PathBuf::from(args)
+            };
             if path.exists() {
                 env::set_current_dir(path).unwrap();
             } else {
