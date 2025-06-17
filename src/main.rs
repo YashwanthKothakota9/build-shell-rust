@@ -6,7 +6,7 @@ use std::{
     process::{exit, Command},
 };
 
-const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "echo", "type"];
+const BUILT_IN_COMMANDS: [&str; 4] = ["exit", "echo", "type", "pwd"];
 
 fn check_path(command: &str) -> Option<String> {
     let key = "PATH";
@@ -51,6 +51,8 @@ fn main() {
             } else {
                 println!("{}: not found", args);
             }
+        } else if command_name == "pwd" {
+            println!("{}", env::current_dir().unwrap().display())
         } else {
             match check_path(command_name) {
                 Some(_) => {
