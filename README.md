@@ -11,25 +11,23 @@ REPLs, builtin commands, and more.
 **Note**: If you're viewing this repo on GitHub, head over to
 [codecrafters.io](https://codecrafters.io) to try the challenge.
 
-# Passing the first stage
+<h1 align="center">Shell from scratch in Rust</h1>
 
-The entry point for your `shell` implementation is in `src/main.rs`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+<div align="center">
+    <img src="/image.png" alt="Project progress image">
+</div>
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
-```
-
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `cargo (1.87)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+### Stages:
+1. Print a Prompt
+2. Handle invalid commands
+3. Implement REPL (Read Eval Print Loop)
+4. Implement `exit` builtin
+5. Implement `echo` builtin
+6. Implement `type` builtin along with executables
+7. Run a program
+8. Implement `pwd` builtin
+9. Implement `cd` builtin - absolute paths, relative paths and home directory
+10. Support single quotes and double quotes
+11. Support backslash - outside quotes, within single quotes, within double quotes
+12. Implement `quoted` executable
+13. Implement `redirection` - `stdout` and `stderr`
