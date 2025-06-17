@@ -68,6 +68,44 @@ fn parse_input(input: &str) -> Vec<String> {
     args
 }
 
+fn check_for_stdout_redirect(args: &[String]) -> usize {
+    for (i, arg) in args.iter().enumerate() {
+        if arg == ">" || arg == "1>" {
+            return i;
+        }
+    }
+    args.len() - 1
+}
+
+fn check_for_stderr_redirect(args: &[String]) -> usize {
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "2>" {
+            return i;
+        }
+    }
+    args.len() - 1
+}
+
+fn run_command(command_name: &str, args: &[String]) {
+    let output = Command::new(command_name).args(args).output().unwrap();
+    io::stdout().write_all(&output.stdout).unwrap();
+    io::stderr().write_all(&output.stderr).unwrap();
+}
+
+fn run_command_with_stdout_redirect(command_name: &str, args: &[String], file_name: &str) {
+    let output = Command::new(command_name).args(args).output().unwrap();
+    let mut file = File::create(file_name).unwrap();
+    file.write_all(&output.stdout).unwrap();
+    io::stderr().write_all(&output.stderr).unwrap();
+}
+
+fn run_command_with_stderr_redirect(command_name: &str, args: &[String], file_name: &str) {
+    let output = Command::new(command_name).args(args).output().unwrap();
+    let mut file = File::create(file_name).unwrap();
+    io::stdout().write_all(&output.stdout).unwrap();
+    file.write_all(&output.stderr).unwrap();
+}
+
 fn main() {
     loop {
         print!("$ ");
@@ -85,16 +123,28 @@ fn main() {
         let command_name = &inputs[0];
         let args = &inputs[1..];
 
+        let stdout_redirect_index = check_for_stdout_redirect(args);
+        let stderr_redirect_index = check_for_stderr_redirect(args);
+
         match command_name.as_str() {
             "exit" => exit(0),
             "echo" => {
-                if args.len() > 1 && (args[1] == ">" || args[1] == "1>") {
-                    let destination_file_name = args[2].clone();
-                    let output = Command::new("echo").args(&args[0..1]).output().unwrap();
-                    let mut file = File::create(destination_file_name).unwrap();
-                    file.write_all(&output.stdout).unwrap();
+                if stdout_redirect_index != args.len() - 1 {
+                    let file_name = args[stdout_redirect_index + 1].clone();
+                    run_command_with_stdout_redirect(
+                        command_name,
+                        &args[0..stdout_redirect_index],
+                        &file_name,
+                    );
+                } else if stderr_redirect_index != args.len() - 1 {
+                    let file_name = args[stderr_redirect_index + 1].clone();
+                    run_command_with_stderr_redirect(
+                        command_name,
+                        &args[0..stderr_redirect_index],
+                        &file_name,
+                    );
                 } else {
-                    println!("{}", args.join(" "))
+                    run_command(command_name, args);
                 }
             }
             "pwd" => println!("{}", env::current_dir().unwrap().to_string_lossy()),
@@ -121,51 +171,53 @@ fn main() {
                 }
             }
             "ls" => {
-                if args.len() > 2 && (args[2] == ">" || args[2] == "1>") {
-                    let destination_file_name = args[3].clone();
-                    let output = Command::new("ls").args(&args[0..2]).output().unwrap();
-                    let mut file = File::create(destination_file_name).unwrap();
-                    file.write_all(&output.stdout).unwrap();
+                if stdout_redirect_index != args.len() - 1 {
+                    let file_name = args[stdout_redirect_index + 1].clone();
+                    run_command_with_stdout_redirect(
+                        command_name,
+                        &args[0..stdout_redirect_index],
+                        &file_name,
+                    );
+                } else if stderr_redirect_index != args.len() - 1 {
+                    let file_name = args[stderr_redirect_index + 1].clone();
+                    run_command_with_stderr_redirect(
+                        command_name,
+                        &args[0..stderr_redirect_index],
+                        &file_name,
+                    );
                 } else {
-                    let output = Command::new("ls").args(&args[0..2]).output().unwrap();
-                    io::stdout().write_all(&output.stdout).unwrap();
-                    io::stderr().write_all(&output.stderr).unwrap();
+                    run_command(command_name, args);
                 }
             }
             "cat" => {
-                let mut i = 0;
-                for (j, arg) in args.iter().enumerate() {
-                    if arg == ">" || arg == "1>" {
-                        i = j;
-                    }
-                }
-                if i == 0 {
-                    let output = Command::new("cat").args(&args[0..]).output().unwrap();
-                    io::stdout().write_all(&output.stdout).unwrap();
-                    io::stderr().write_all(&output.stderr).unwrap();
-                } else {
-                    let destination_file_name = args[i + 1].clone();
-                    let mut new_args = Vec::new();
-                    for j in 0..i {
-                        if Path::new(&args[j]).exists() {
-                            new_args.push(args[j].clone());
-                        } else {
-                            println!("{}: {}: No such file or directory", command_name, args[j]);
-                        }
-                    }
-                    let output = Command::new("cat").args(new_args).output().unwrap();
-                    let mut file = File::create(destination_file_name).unwrap();
-                    file.write_all(&output.stdout).unwrap();
+                if stdout_redirect_index == args.len() - 1
+                    && stderr_redirect_index == args.len() - 1
+                {
+                    run_command(command_name, args);
+                } else if stdout_redirect_index != args.len() - 1 {
+                    // println!("stdout_redirect_index: {}", stdout_redirect_index);
+                    let destination_file_name = args[stdout_redirect_index + 1].clone();
+                    run_command_with_stdout_redirect(
+                        command_name,
+                        &args[0..stdout_redirect_index],
+                        &destination_file_name,
+                    );
+                } else if stderr_redirect_index != args.len() - 1 {
+                    // println!("stderr_redirect_index: {}", stderr_redirect_index);
+                    let destination_file_name = args[stderr_redirect_index + 1].clone();
+                    // println!("cat_destination_file_name: {}", destination_file_name);
+                    run_command_with_stderr_redirect(
+                        command_name,
+                        &args[0..stderr_redirect_index],
+                        &destination_file_name,
+                    );
                 }
             }
-
             _ => {
                 let path = check_path(command_name);
                 match path {
-                    Some(path) => {
-                        let output = Command::new(command_name).args(args).output().unwrap();
-                        io::stdout().write_all(&output.stdout).unwrap();
-                        io::stderr().write_all(&output.stderr).unwrap();
+                    Some(_path) => {
+                        run_command(command_name, args);
                     }
                     None => {
                         eprintln!("{}: command not found", command_name);
