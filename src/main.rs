@@ -3,11 +3,12 @@ use regex::Regex;
 use std::io::{self, Write};
 use std::{
     env,
+    fs::File,
     path::{Path, PathBuf},
     process::{exit, Command},
 };
 
-const BUILT_IN_COMMANDS: [&str; 5] = ["exit", "echo", "type", "pwd", "cd"];
+const BUILT_IN_COMMANDS: [&str; 6] = ["exit", "echo", "type", "pwd", "cd", "ls"];
 
 fn check_path(command: &str) -> Option<String> {
     let key = "PATH";
@@ -86,7 +87,16 @@ fn main() {
 
         match command_name.as_str() {
             "exit" => exit(0),
-            "echo" => println!("{}", args.join(" ")),
+            "echo" => {
+                if args.len() > 1 && (args[1] == ">" || args[1] == "1>") {
+                    let destination_file_name = args[2].clone();
+                    let output = Command::new("echo").args(&args[0..1]).output().unwrap();
+                    let mut file = File::create(destination_file_name).unwrap();
+                    file.write_all(&output.stdout).unwrap();
+                } else {
+                    println!("{}", args.join(" "))
+                }
+            }
             "pwd" => println!("{}", env::current_dir().unwrap().to_string_lossy()),
             "cd" => {
                 if args.is_empty() || args[0] == "~" {
@@ -110,6 +120,45 @@ fn main() {
                     }
                 }
             }
+            "ls" => {
+                if args.len() > 2 && (args[2] == ">" || args[2] == "1>") {
+                    let destination_file_name = args[3].clone();
+                    let output = Command::new("ls").args(&args[0..2]).output().unwrap();
+                    let mut file = File::create(destination_file_name).unwrap();
+                    file.write_all(&output.stdout).unwrap();
+                } else {
+                    let output = Command::new("ls").args(&args[0..2]).output().unwrap();
+                    io::stdout().write_all(&output.stdout).unwrap();
+                    io::stderr().write_all(&output.stderr).unwrap();
+                }
+            }
+            "cat" => {
+                let mut i = 0;
+                for (j, arg) in args.iter().enumerate() {
+                    if arg == ">" || arg == "1>" {
+                        i = j;
+                    }
+                }
+                if i == 0 {
+                    let output = Command::new("cat").args(&args[0..]).output().unwrap();
+                    io::stdout().write_all(&output.stdout).unwrap();
+                    io::stderr().write_all(&output.stderr).unwrap();
+                } else {
+                    let destination_file_name = args[i + 1].clone();
+                    let mut new_args = Vec::new();
+                    for j in 0..i {
+                        if Path::new(&args[j]).exists() {
+                            new_args.push(args[j].clone());
+                        } else {
+                            println!("{}: {}: No such file or directory", command_name, args[j]);
+                        }
+                    }
+                    let output = Command::new("cat").args(new_args).output().unwrap();
+                    let mut file = File::create(destination_file_name).unwrap();
+                    file.write_all(&output.stdout).unwrap();
+                }
+            }
+
             _ => {
                 let path = check_path(command_name);
                 match path {
