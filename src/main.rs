@@ -95,6 +95,15 @@ fn check_for_stderr_redirect(args: &[String]) -> usize {
     args.len() - 1
 }
 
+fn check_for_append_stderr(args: &[String]) -> usize {
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "2>>" {
+            return i;
+        }
+    }
+    args.len() - 1
+}
+
 fn run_command(command_name: &str, args: &[String]) {
     let output = Command::new(command_name).args(args).output().unwrap();
     io::stdout().write_all(&output.stdout).unwrap();
@@ -120,9 +129,24 @@ fn run_command_with_append_stdout_redirect(command_name: &str, args: &[String], 
     if Path::new(file_name).exists() {
         let mut file = File::options().append(true).open(file_name).unwrap();
         file.write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
     } else {
         let mut file = File::create(file_name).unwrap();
         file.write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
+    }
+}
+
+fn run_command_with_append_stderr_redirect(command_name: &str, args: &[String], file_name: &str) {
+    let output = Command::new(command_name).args(args).output().unwrap();
+    if Path::new(file_name).exists() {
+        let mut file = File::options().append(true).open(file_name).unwrap();
+        file.write_all(&output.stderr).unwrap();
+        io::stdout().write_all(&output.stdout).unwrap();
+    } else {
+        let mut file = File::create(file_name).unwrap();
+        file.write_all(&output.stderr).unwrap();
+        io::stdout().write_all(&output.stdout).unwrap();
     }
 }
 
@@ -146,6 +170,7 @@ fn main() {
         let stdout_redirect_index = check_for_stdout_redirect(args);
         let stderr_redirect_index = check_for_stderr_redirect(args);
         let append_stdout_index = check_for_append_stdout(args);
+        let append_stderr_index = check_for_append_stderr(args);
 
         match command_name.as_str() {
             "exit" => exit(0),
@@ -169,6 +194,13 @@ fn main() {
                     run_command_with_append_stdout_redirect(
                         command_name,
                         &args[0..append_stdout_index],
+                        &file_name,
+                    );
+                } else if append_stderr_index != args.len() - 1 {
+                    let file_name = args[append_stderr_index + 1].clone();
+                    run_command_with_append_stderr_redirect(
+                        command_name,
+                        &args[0..append_stderr_index],
                         &file_name,
                     );
                 } else {
@@ -220,17 +252,19 @@ fn main() {
                         &args[0..append_stdout_index],
                         &file_name,
                     );
+                } else if append_stderr_index != args.len() - 1 {
+                    let file_name = args[append_stderr_index + 1].clone();
+                    run_command_with_append_stderr_redirect(
+                        command_name,
+                        &args[0..append_stderr_index],
+                        &file_name,
+                    );
                 } else {
                     run_command(command_name, args);
                 }
             }
             "cat" => {
-                if stdout_redirect_index == args.len() - 1
-                    && stderr_redirect_index == args.len() - 1
-                {
-                    run_command(command_name, args);
-                } else if stdout_redirect_index != args.len() - 1 {
-                    // println!("stdout_redirect_index: {}", stdout_redirect_index);
+                if stdout_redirect_index != args.len() - 1 {
                     let destination_file_name = args[stdout_redirect_index + 1].clone();
                     run_command_with_stdout_redirect(
                         command_name,
@@ -238,14 +272,28 @@ fn main() {
                         &destination_file_name,
                     );
                 } else if stderr_redirect_index != args.len() - 1 {
-                    // println!("stderr_redirect_index: {}", stderr_redirect_index);
                     let destination_file_name = args[stderr_redirect_index + 1].clone();
-                    // println!("cat_destination_file_name: {}", destination_file_name);
                     run_command_with_stderr_redirect(
                         command_name,
                         &args[0..stderr_redirect_index],
                         &destination_file_name,
                     );
+                } else if append_stdout_index != args.len() - 1 {
+                    let file_name = args[append_stdout_index + 1].clone();
+                    run_command_with_append_stdout_redirect(
+                        command_name,
+                        &args[0..append_stdout_index],
+                        &file_name,
+                    );
+                } else if append_stderr_index != args.len() - 1 {
+                    let file_name = args[append_stderr_index + 1].clone();
+                    run_command_with_append_stderr_redirect(
+                        command_name,
+                        &args[0..append_stderr_index],
+                        &file_name,
+                    );
+                } else {
+                    run_command(command_name, args);
                 }
             }
             _ => {
