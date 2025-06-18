@@ -31,3 +31,11 @@ REPLs, builtin commands, and more.
 11. Support backslash - outside quotes, within single quotes, within double quotes
 12. Implement `quoted` executable
 13. Implement `redirection` - `stdout` and `stderr`
+14. Append - `stdout` and `stderr`
+15. Builtin completion
+    1.  Needs to replace basic input system with input system that can
+        1.  Detect when `TAB` is pressed
+        2.  Show what the user is typing in real-time
+        3.  Complete the word when `TAB` pressed
+        4.  Handle backspace, arrow keys, etc.
+    2.  `rustyline` - rust implementation of `readline`, library that handles all complex terminal input automatically
