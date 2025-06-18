@@ -77,6 +77,15 @@ fn check_for_stdout_redirect(args: &[String]) -> usize {
     args.len() - 1
 }
 
+fn check_for_append_stdout(args: &[String]) -> usize {
+    for (i, arg) in args.iter().enumerate() {
+        if arg == ">>" || arg == "1>>" {
+            return i;
+        }
+    }
+    args.len() - 1
+}
+
 fn check_for_stderr_redirect(args: &[String]) -> usize {
     for (i, arg) in args.iter().enumerate() {
         if arg == "2>" {
@@ -106,6 +115,17 @@ fn run_command_with_stderr_redirect(command_name: &str, args: &[String], file_na
     file.write_all(&output.stderr).unwrap();
 }
 
+fn run_command_with_append_stdout_redirect(command_name: &str, args: &[String], file_name: &str) {
+    let output = Command::new(command_name).args(args).output().unwrap();
+    if Path::new(file_name).exists() {
+        let mut file = File::options().append(true).open(file_name).unwrap();
+        file.write_all(&output.stdout).unwrap();
+    } else {
+        let mut file = File::create(file_name).unwrap();
+        file.write_all(&output.stdout).unwrap();
+    }
+}
+
 fn main() {
     loop {
         print!("$ ");
@@ -125,6 +145,7 @@ fn main() {
 
         let stdout_redirect_index = check_for_stdout_redirect(args);
         let stderr_redirect_index = check_for_stderr_redirect(args);
+        let append_stdout_index = check_for_append_stdout(args);
 
         match command_name.as_str() {
             "exit" => exit(0),
@@ -141,6 +162,13 @@ fn main() {
                     run_command_with_stderr_redirect(
                         command_name,
                         &args[0..stderr_redirect_index],
+                        &file_name,
+                    );
+                } else if append_stdout_index != args.len() - 1 {
+                    let file_name = args[append_stdout_index + 1].clone();
+                    run_command_with_append_stdout_redirect(
+                        command_name,
+                        &args[0..append_stdout_index],
                         &file_name,
                     );
                 } else {
@@ -183,6 +211,13 @@ fn main() {
                     run_command_with_stderr_redirect(
                         command_name,
                         &args[0..stderr_redirect_index],
+                        &file_name,
+                    );
+                } else if append_stdout_index != args.len() - 1 {
+                    let file_name = args[append_stdout_index + 1].clone();
+                    run_command_with_append_stdout_redirect(
+                        command_name,
+                        &args[0..append_stdout_index],
                         &file_name,
                     );
                 } else {
