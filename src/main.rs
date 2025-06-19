@@ -2,6 +2,8 @@ pub mod autocompletion;
 pub mod utils;
 
 use std::env;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::process::exit;
 
 use autocompletion::ShellCompleter;
@@ -27,7 +29,7 @@ fn main() {
                 }
 
                 // Add command to history
-                editor.add_history_entry(input_command);
+                let _ = editor.add_history_entry(input_command);
 
                 // Check if this is a pipeline
                 if has_pipeline(input_command) {
@@ -55,9 +57,21 @@ fn main() {
                     "history" => {
                         let history = editor.history();
                         if !args.is_empty() && !args[0].is_empty() {
-                            let start_index = history.len() - args[0].parse::<usize>().unwrap();
-                            for i in start_index..history.len() {
-                                println!("    {}  {}", i + 1, history[i]);
+                            if args[0] == "-r" {
+                                let history_file_name = args[1].clone();
+                                let history_file = File::open(history_file_name).unwrap();
+                                let mut history_reader = BufReader::new(history_file);
+                                let mut line = String::new();
+                                while history_reader.read_line(&mut line).unwrap() > 0 {
+                                    let _ = editor.add_history_entry(line.trim());
+                                    line.clear();
+                                }
+                                continue;
+                            } else {
+                                let start_index = history.len() - args[0].parse::<usize>().unwrap();
+                                for i in start_index..history.len() {
+                                    println!("    {}  {}", i + 1, history[i]);
+                                }
                             }
                         } else {
                             for (i, entry) in history.iter().enumerate() {
