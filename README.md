@@ -14,7 +14,7 @@ REPLs, builtin commands, and more.
 <h1 align="center">Shell from scratch in Rust</h1>
 
 <div align="center">
-    <img src="/image.png" alt="Project progress image">
+    <img src="/rust-image-3.png" alt="Project progress image">
 </div>
 
 ### Stages:
