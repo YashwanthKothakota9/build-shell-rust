@@ -12,8 +12,8 @@ use utils::*;
 const BUILT_IN_COMMANDS: [&str; 6] = ["exit", "echo", "type", "pwd", "cd", "ls"];
 
 fn main() {
-    let mut editor = Editor::new().unwrap();
-    editor.set_helper(Some(ShellCompleter));
+    let mut editor = Editor::new().expect("Unable to initiate the prompt.");
+    editor.set_helper(Some(ShellCompleter::default()));
 
     loop {
         let readline = editor.readline("$ ");

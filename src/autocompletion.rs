@@ -1,90 +1,144 @@
-use rustyline::completion::Completer;
+use rustyline::completion::{Completer, Pair};
+
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
+use rustyline::Context;
 use rustyline::Helper;
+use std::cell::RefCell;
 use std::env;
 use std::fs;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::io::{self, Write};
 
-pub struct ShellCompleter;
+const BUILTINS: &[&str] = &["echo", "exit", "type", "pwd", "cd", "ls"];
+
+#[derive(Default)]
+pub struct ShellCompleter {
+    tab_count: RefCell<u32>,
+    last_line: RefCell<String>,
+}
 
 impl ShellCompleter {
-    fn get_executables_from_path() -> Vec<String> {
-        let mut executables = Vec::new();
-
-        if let Ok(path_var) = env::var("PATH") {
-            for path_dir in path_var.split(':') {
-                if let Ok(entries) = fs::read_dir(path_dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() && Self::is_executable(&path) {
-                            if let Some(name) = path.file_name() {
-                                if let Some(name_str) = name.to_str() {
-                                    executables.push(name_str.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        executables
+    fn ring_bell() {
+        print!("\x07"); // ASCII bell character
+        io::stdout().flush().unwrap();
     }
 
-    fn is_executable(path: &Path) -> bool {
-        #[cfg(unix)]
-        {
-            if let Ok(metadata) = fs::metadata(path) {
-                let mode = metadata.permissions().mode();
-                return (mode & 0o111) != 0;
+    fn print_matches(matches: &[String], current_input: &str) {
+        println!();
+        for (i, matche) in matches.iter().enumerate() {
+            if i > 0 {
+                print!("  "); // 2 spaces separator
             }
+            print!("{}", matche);
         }
-
-        #[cfg(windows)]
-        {
-            if let Some(extension) = path.extension() {
-                if let Some(ext_str) = extension.to_str() {
-                    return matches!(
-                        ext_str.to_lowercase().as_str(),
-                        "exe" | "bat" | "cmd" | "com"
-                    );
-                }
-            }
-        }
-
-        false
+        println!();
+        print!("$ {}", current_input);
+        io::stdout().flush().unwrap();
     }
 }
 
 impl Completer for ShellCompleter {
-    type Candidate = String;
+    type Candidate = Pair;
 
     fn complete(
         &self,
         line: &str,
-        _pos: usize,
-        _ctx: &rustyline::Context<'_>,
+        pos: usize,
+        _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        let mut candidates = Vec::new();
+        let start = line[..pos].rfind(' ').map_or(0, |i| i + 1);
+        let prefix = &line[start..pos];
 
-        let builtins = ["exit", "echo", "type", "pwd", "cd", "ls"];
+        // Check if this is a continuation of the same line
+        let mut tab_count = self.tab_count.borrow_mut();
+        let mut last_line = self.last_line.borrow_mut();
 
-        let executables = Self::get_executables_from_path();
-
-        let mut all_commands = builtins.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        all_commands.extend(executables);
-
-        for command in all_commands {
-            if command.starts_with(line) {
-                candidates.push(format!("{} ", command));
-            }
+        if line == *last_line {
+            *tab_count += 1;
+        } else {
+            *tab_count = 1;
+            *last_line = line.to_string();
         }
 
-        Ok((0, candidates))
+        // First, check for builtin matches
+        let builtin_matches: Vec<_> = BUILTINS
+            .iter()
+            .filter(|builtin| builtin.starts_with(prefix))
+            .map(|builtin| Pair {
+                display: builtin.to_string(),
+                replacement: builtin.to_string() + " ",
+            })
+            .collect();
+
+        // If we have exactly one builtin match, complete it immediately
+        if builtin_matches.len() == 1 {
+            *tab_count = 0; // Reset tab count
+            return Ok((start, builtin_matches));
+        }
+
+        // If we have multiple builtin matches, complete them immediately
+        if builtin_matches.len() > 1 {
+            *tab_count = 0; // Reset tab count
+            return Ok((start, builtin_matches));
+        }
+
+        // If no builtin matches, check external executables
+        let paths = env::var_os("PATH").unwrap_or_default();
+        let mut external_matches: Vec<_> = env::split_paths(&paths)
+            .flat_map(|path| match fs::read_dir(&path) {
+                Ok(readdir) => readdir
+                    .filter_map(|entry| match entry {
+                        Ok(entry) => {
+                            let filename = entry.file_name().to_string_lossy().to_string();
+                            match filename.starts_with(prefix) {
+                                true => Some(filename),
+                                false => None,
+                            }
+                        }
+                        Err(_) => None,
+                    })
+                    .collect::<Vec<_>>(),
+                Err(_) => vec![],
+            })
+            .collect();
+
+        external_matches.sort();
+        let external_pairs: Vec<_> = external_matches
+            .into_iter()
+            .map(|v| Pair {
+                display: v.clone(),
+                replacement: v + " ",
+            })
+            .collect();
+
+        // Handle external executable matches
+        if external_pairs.is_empty() {
+            // No matches at all
+            *tab_count = 0;
+            return Ok((start, vec![]));
+        }
+
+        if external_pairs.len() == 1 {
+            // Single external match, complete it immediately
+            *tab_count = 0;
+            return Ok((start, external_pairs));
+        }
+
+        // Multiple external matches - use bell/list behavior
+        if *tab_count == 1 {
+            // First TAB: ring bell
+            Self::ring_bell();
+            return Ok((start, vec![]));
+        } else if *tab_count == 2 {
+            // Second TAB: show all matches
+            let matches: Vec<String> = external_pairs.iter().map(|p| p.display.clone()).collect();
+            Self::print_matches(&matches, line);
+            *tab_count = 0; // Reset tab count
+            return Ok((start, vec![]));
+        }
+
+        Ok((start, external_pairs))
     }
 }
 
