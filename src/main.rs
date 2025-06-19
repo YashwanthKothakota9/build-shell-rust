@@ -3,7 +3,7 @@ pub mod utils;
 
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::process::exit;
 
 use autocompletion::ShellCompleter;
@@ -65,6 +65,14 @@ fn main() {
                                 while history_reader.read_line(&mut line).unwrap() > 0 {
                                     let _ = editor.add_history_entry(line.trim());
                                     line.clear();
+                                }
+                                continue;
+                            } else if args[0] == "-w" {
+                                let history_file_name = args[1].clone();
+                                let history_file = File::create(history_file_name).unwrap();
+                                let mut history_writer = BufWriter::new(history_file);
+                                for entry in history.iter() {
+                                    writeln!(history_writer, "{}", entry).unwrap();
                                 }
                                 continue;
                             } else {
