@@ -36,6 +36,51 @@ impl ShellCompleter {
         print!("$ {}", current_input);
         io::stdout().flush().unwrap();
     }
+
+    /// Find the longest common prefix among a list of strings
+    /// Returns (common_prefix, unique_matches_count)
+    fn find_longest_common_prefix(strings: &[String]) -> (String, usize) {
+        if strings.is_empty() {
+            return (String::new(), 0);
+        }
+
+        if strings.len() == 1 {
+            return (strings[0].clone(), 1);
+        }
+
+        // Find the shortest string length to avoid out-of-bounds access
+        let min_len = strings.iter().map(|s| s.len()).min().unwrap_or(0);
+
+        // Find the longest common prefix
+        let mut common_prefix_len = 0;
+        'outer: for i in 0..min_len {
+            let char_at_pos = strings[0].chars().nth(i);
+            for string in strings.iter() {
+                if string.chars().nth(i) != char_at_pos {
+                    break 'outer;
+                }
+            }
+            common_prefix_len = i + 1;
+        }
+
+        let common_prefix = if common_prefix_len > 0 {
+            strings[0][..common_prefix_len].to_string()
+        } else {
+            String::new()
+        };
+
+        // Count how many unique strings we have after the common prefix
+        let mut unique_suffixes = std::collections::HashSet::new();
+        for string in strings {
+            if string.len() > common_prefix_len {
+                unique_suffixes.insert(&string[common_prefix_len..]);
+            } else {
+                unique_suffixes.insert(""); // Empty suffix for exact matches
+            }
+        }
+
+        (common_prefix, unique_suffixes.len())
+    }
 }
 
 impl Completer for ShellCompleter {
@@ -125,19 +170,47 @@ impl Completer for ShellCompleter {
             return Ok((start, external_pairs));
         }
 
-        // Multiple external matches - use bell/list behavior
+        // Multiple external matches - use progressive completion
+        let external_names: Vec<String> =
+            external_pairs.iter().map(|p| p.display.clone()).collect();
+        let (common_prefix, unique_count) = Self::find_longest_common_prefix(&external_names);
+
+        // If common prefix is longer than current input, complete to it
+        if common_prefix.len() > prefix.len() {
+            let completion = Pair {
+                display: common_prefix.clone(),
+                replacement: common_prefix,
+            };
+            *tab_count = 0; // Reset tab count after successful completion
+            return Ok((start, vec![completion]));
+        }
+
+        // If common prefix equals current input and there's only one unique option, complete it
+        if common_prefix.len() == prefix.len() && unique_count == 1 {
+            // Find the full match - this should always succeed since unique_count == 1
+            if let Some(full_match) = external_names.iter().find(|name| name.starts_with(prefix)) {
+                let completion = Pair {
+                    display: full_match.clone(),
+                    replacement: full_match.clone() + " ",
+                };
+                *tab_count = 0; // Reset tab count after successful completion
+                return Ok((start, vec![completion]));
+            }
+        }
+
+        // If common prefix equals current input and there are multiple options, use bell/list behavior
         if *tab_count == 1 {
             // First TAB: ring bell
             Self::ring_bell();
             return Ok((start, vec![]));
         } else if *tab_count == 2 {
             // Second TAB: show all matches
-            let matches: Vec<String> = external_pairs.iter().map(|p| p.display.clone()).collect();
-            Self::print_matches(&matches, line);
+            Self::print_matches(&external_names, line);
             *tab_count = 0; // Reset tab count
             return Ok((start, vec![]));
         }
 
+        // Fallback: return all matches
         Ok((start, external_pairs))
     }
 }
