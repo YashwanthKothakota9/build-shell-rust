@@ -11,3 +11,4 @@ bytes = "1.3.0"                                  # helps manage buffers
 thiserror = "1.0.38"                             # error handling
 regex = "1.11.1"
 rustyline = "16.0.0"
+nix = "0.26.0"                                   # Unix system calls

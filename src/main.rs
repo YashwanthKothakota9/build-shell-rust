@@ -25,6 +25,18 @@ fn main() {
                     continue;
                 }
 
+                // Check if this is a pipeline
+                if has_pipeline(input_command) {
+                    let commands = split_pipeline(input_command);
+                    if commands.len() >= 2 {
+                        // Execute pipeline
+                        if let Err(e) = execute_pipeline(&commands) {
+                            eprintln!("Pipeline execution error: {}", e);
+                        }
+                        continue;
+                    }
+                }
+
                 let inputs = parse_input(input_command);
                 let command_name = &inputs[0];
                 let args = &inputs[1..];
