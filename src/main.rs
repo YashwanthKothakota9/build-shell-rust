@@ -25,6 +25,9 @@ fn main() {
                     continue;
                 }
 
+                // Add command to history
+                editor.add_history_entry(input_command);
+
                 // Check if this is a pipeline
                 if has_pipeline(input_command) {
                     let commands = split_pipeline(input_command);
@@ -48,6 +51,12 @@ fn main() {
 
                 match command_name.as_str() {
                     "exit" => exit(0),
+                    "history" => {
+                        let history = editor.history();
+                        for (i, entry) in history.iter().enumerate() {
+                            println!("    {}  {}", i + 1, entry);
+                        }
+                    }
                     "echo" => {
                         if stdout_redirect_index != args.len() - 1 {
                             let file_name = args[stdout_redirect_index + 1].clone();
