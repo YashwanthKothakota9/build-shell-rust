@@ -2,7 +2,7 @@ pub mod autocompletion;
 pub mod utils;
 
 use std::env;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::process::exit;
 
@@ -74,6 +74,18 @@ fn main() {
                                 for entry in history.iter() {
                                     writeln!(history_writer, "{}", entry).unwrap();
                                 }
+                                continue;
+                            } else if args[0] == "-a" {
+                                let history_file_name = args[1].clone();
+                                let history_file = OpenOptions::new()
+                                    .append(true)
+                                    .open(history_file_name)
+                                    .unwrap();
+                                let mut history_writer = BufWriter::new(history_file);
+                                for entry in history.iter() {
+                                    writeln!(history_writer, "{}", entry).unwrap();
+                                }
+                                let _ = editor.clear_history();
                                 continue;
                             } else {
                                 let start_index = history.len() - args[0].parse::<usize>().unwrap();
