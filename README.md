@@ -39,3 +39,7 @@ REPLs, builtin commands, and more.
         3.  Complete the word when `TAB` pressed
         4.  Handle backspace, arrow keys, etc.
     2.  `rustyline` - rust implementation of `readline`, library that handles all complex terminal input automatically
+16. Handle missing, multiple and partial completions
+17. Handling Pipelines
+18. Implement `history`
+19. Implement `history` persistence through file.
