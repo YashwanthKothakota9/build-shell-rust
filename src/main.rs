@@ -62,7 +62,16 @@ fn main() {
                 let append_stderr_index = check_for_append_stderr(args);
 
                 match command_name.as_str() {
-                    "exit" => exit(0),
+                    "exit" => {
+                        if let Ok(history_on_startup) = env::var("HISTFILE") {
+                            let history_file = File::create(history_on_startup).unwrap();
+                            let mut history_writer = BufWriter::new(history_file);
+                            for entry in editor.history() {
+                                writeln!(history_writer, "{}", entry).unwrap();
+                            }
+                        }
+                        exit(0);
+                    }
                     "history" => {
                         let history = editor.history();
                         if !args.is_empty() && !args[0].is_empty() {
