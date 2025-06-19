@@ -9,7 +9,7 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use utils::*;
 
-const BUILT_IN_COMMANDS: [&str; 6] = ["exit", "echo", "type", "pwd", "cd", "ls"];
+const BUILT_IN_COMMANDS: [&str; 7] = ["exit", "echo", "type", "pwd", "cd", "ls", "history"];
 
 fn main() {
     let mut editor = Editor::new().expect("Unable to initiate the prompt.");
