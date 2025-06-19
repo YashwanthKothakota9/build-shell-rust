@@ -6,6 +6,7 @@ use std::process::exit;
 
 use autocompletion::ShellCompleter;
 use rustyline::error::ReadlineError;
+use rustyline::history::History;
 use rustyline::Editor;
 use utils::*;
 
@@ -53,8 +54,15 @@ fn main() {
                     "exit" => exit(0),
                     "history" => {
                         let history = editor.history();
-                        for (i, entry) in history.iter().enumerate() {
-                            println!("    {}  {}", i + 1, entry);
+                        if !args.is_empty() && !args[0].is_empty() {
+                            let start_index = history.len() - args[0].parse::<usize>().unwrap();
+                            for i in start_index..history.len() {
+                                println!("    {}  {}", i + 1, history[i]);
+                            }
+                        } else {
+                            for (i, entry) in history.iter().enumerate() {
+                                println!("    {}  {}", i + 1, entry);
+                            }
                         }
                     }
                     "echo" => {
