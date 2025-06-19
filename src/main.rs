@@ -17,6 +17,15 @@ const BUILT_IN_COMMANDS: [&str; 7] = ["exit", "echo", "type", "pwd", "cd", "ls",
 fn main() {
     let mut editor = Editor::new().expect("Unable to initiate the prompt.");
     editor.set_helper(Some(ShellCompleter::default()));
+    if let Ok(history_on_startup) = env::var("HISTFILE") {
+        let history_file = File::open(history_on_startup).unwrap();
+        let mut history_reader = BufReader::new(history_file);
+        let mut line = String::new();
+        while history_reader.read_line(&mut line).unwrap() > 0 {
+            let _ = editor.add_history_entry(line.trim());
+            line.clear();
+        }
+    }
 
     loop {
         let readline = editor.readline("$ ");
